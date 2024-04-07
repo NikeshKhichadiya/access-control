@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { sendResponse } from '../../helpers/sendResponse';
-import { aes256EncryptFile } from '../../helpers/encrypt';
+import { aes128EncryptFile, aes256EncryptFile, tripleDesEncryptFile } from '../../helpers/encrypt';
 import { aes256DecryptFile } from '../../helpers/decrypt';
 import path from 'path';
 import fs from 'fs';
@@ -13,7 +13,38 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
 
         const { path } = req.file;
         const encryptedFile = `${path}.enc`;
-        const result = await aes256EncryptFile(path, encryptedFile);
+
+        let result
+
+        if (req.params['confidentiality'] === 'high') {
+
+            result = await aes256EncryptFile(path, encryptedFile);
+
+        }
+
+        else if (req.params['confidentiality'] === 'medium') {
+
+            result = await aes128EncryptFile(path, encryptedFile);
+
+        }
+
+        else if (req.params['confidentiality'] === 'low') {
+
+            result = await tripleDesEncryptFile(path, encryptedFile);
+
+        }
+
+        else if (req.params['confidentiality'] === 'none') {
+
+            result = 'File uploaded successfully'
+
+        }
+
+        else {
+
+            result = await aes128EncryptFile(path, encryptedFile);
+
+        }
 
         fs.unlinkSync(path);
         sendResponse(res, 200, result);

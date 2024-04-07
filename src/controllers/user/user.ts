@@ -55,10 +55,3 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return sendResponse(res, 400, 'Invalid cradantials');
 
 }
-
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
-
-    const data = await User.find({});
-    return sendResponse(res, 200, 'User get successfully', data);
-
-}

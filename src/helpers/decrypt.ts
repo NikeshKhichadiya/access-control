@@ -26,3 +26,52 @@ export const aes256DecryptFile = async (inputFile: string, outputFile: string): 
     }
 
 };
+
+export const aes128DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+
+    try {
+
+        const key = config.aes128key;
+        const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
+        const decrypted = CryptoJS.AES.decrypt(encryptedContent, key, {
+            mode: CryptoJS.mode.CFB,
+            padding: CryptoJS.pad.Pkcs7,
+            keySize: 128 / 32
+        });
+
+        const decryptedContent = decrypted.toString(CryptoJS.enc.Utf8);
+        await fs.promises.writeFile(outputFile, decryptedContent, 'binary');
+
+    }
+    catch (error: any) {
+
+        console.error('Decryption Error:', error.message);
+        throw error;
+
+    }
+
+};
+
+export const tripleDesDecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+
+    try {
+
+        const key = config.tripleDesKey;
+        const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
+        const decrypted = CryptoJS.TripleDES.decrypt(encryptedContent, key, {
+            mode: CryptoJS.mode.CFB,
+            padding: CryptoJS.pad.Pkcs7
+        });
+
+        const decryptedContent = decrypted.toString(CryptoJS.enc.Utf8);
+        await fs.promises.writeFile(outputFile, decryptedContent, 'binary');
+
+    }
+    catch (error: any) {
+
+        console.error('Decryption Error:', error.message);
+        throw error;
+
+    }
+
+};
