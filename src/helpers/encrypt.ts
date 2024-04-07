@@ -21,7 +21,7 @@ export const aes256EncryptFile = async (inputFile: string, outputFile: string): 
 
         await writeFileSync(outputFile, encrypted.toString());
 
-        return 'File uploaded successfullys';
+        return 'File uploaded successfully';
 
     }
     catch (error: any) {
@@ -49,7 +49,7 @@ export const aes128EncryptFile = async (inputFile: string, outputFile: string): 
         });
 
         await writeFileSync(outputFile, encrypted.toString());
-        return 'File uploaded successfullys';
+        return 'File uploaded successfully';
 
     }
 
@@ -82,5 +82,24 @@ export const tripleDesEncryptFile = async (inputFile: string, outputFile: string
     catch (error: any) {
         console.error('Encryption Error:', error.message);
         throw new Error('Encryption failed');
+    }
+};
+
+export const storeFile = async (inputFile: string, outputFile: string): Promise<string> => {
+    try {
+        // Check if the input file exists
+        const fileExists = await fs.promises.access(inputFile).then(() => true).catch(() => false);
+        if (!fileExists) {
+            throw new Error('Input file does not exist');
+        }
+
+        // Copy file from input path to output path
+        await fs.promises.copyFile(inputFile, outputFile);
+
+        return 'File uploaded successfully';
+    }
+    catch (error: any) {
+        console.error('File Storage Error:', error.message);
+        throw new Error('File storage failed');
     }
 };
