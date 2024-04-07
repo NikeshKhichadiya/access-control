@@ -12,10 +12,8 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
         if (!req.file) { return sendResponse(res, 400, 'No file uploaded'); }
 
         const { path } = req.file;
-
-        const key = "a32bytesecretkey!a32bytesecretkey!";
         const encryptedFile = `${path}.enc`;
-        const result = await aes256EncryptFile(key, path, encryptedFile);
+        const result = await aes256EncryptFile(path, encryptedFile);
 
         fs.unlinkSync(path);
         sendResponse(res, 200, result);
@@ -33,17 +31,17 @@ export const downloadFile = async (req: Request, res: Response, next: NextFuncti
     try {
 
         const { filename } = req.body;
-        const filePath = path.join(__dirname, '../../../files/', filename);
+        const filePath = path.join(__dirname, `../../../files/${req.headers.userId}`, filename);
         const decryptedFilePath = path.join(__dirname, '../../../temp/', filename);
 
-        const filesDir = path.join(__dirname, '../../../files');
+        const filesDir = path.join(__dirname, `../../../files/${req.headers.userId}`);
         if (!fs.existsSync(filesDir)) { fs.mkdirSync(filesDir, { recursive: true }); }
 
         const tempDir = path.join(__dirname, '../../../temp');
         if (!fs.existsSync(tempDir)) { fs.mkdirSync(tempDir, { recursive: true }); }
 
         if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'File not found'); }
-        await aes256DecryptFile("a32bytesecretkey!a32bytesecretkey!", filePath, decryptedFilePath);
+        await aes256DecryptFile(filePath, decryptedFilePath);
 
         if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 500, 'Decryption failed'); }
 

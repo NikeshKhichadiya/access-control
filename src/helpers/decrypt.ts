@@ -1,10 +1,12 @@
 import fs from 'fs';
 import CryptoJS from 'crypto-js';
+import { config } from '../config';
 
-export const aes256DecryptFile = async (key: string, inputFile: string, outputFile: string): Promise<void> => {
+export const aes256DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
 
     try {
 
+        const key = config.aes256key;
         const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
         const decrypted = CryptoJS.AES.decrypt(encryptedContent, key, {
             mode: CryptoJS.mode.CFB,
