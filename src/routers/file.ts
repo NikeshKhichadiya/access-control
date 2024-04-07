@@ -30,7 +30,7 @@ const upload = multer({ storage: storage }).single('file');
 
 const fileRouter = Router();
 
-fileRouter.post('/upload', upload, uploadFile);
+fileRouter.post('/upload/:confidentiality', upload, uploadFile);
 fileRouter.post('/download', downloadFile);
 
 export default fileRouter;
