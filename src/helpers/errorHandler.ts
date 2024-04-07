@@ -3,6 +3,8 @@ import { sendResponse } from "./sendResponse";
 
 export const errorHandler = (error: any, req: Request, res: Response, next: NextFunction): void => {
 
+    console.log(error)
+
     if (error && Array.isArray(error?.details) && error.details.length > 0) {
 
         let errors: Array<any> = error.details;

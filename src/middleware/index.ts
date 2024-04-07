@@ -12,12 +12,12 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
         const decoded = jwt.verify(token as string, config.secretkey) as { [key: string]: any };
 
         if (decoded) { next(); }
-        else { return sendResponse(res, 403, 'Invalid token'); }
+        else { return sendResponse(res, 403, 'Unauthorized access'); }
 
     } catch (error: any) {
 
         console.error('JWT Error:', error.message);
-        return sendResponse(res, 403, 'Invalid token');
+        return sendResponse(res, 403, 'Unauthorized access');
 
     }
 
