@@ -11,13 +11,18 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
         if (!token) { return sendResponse(res, 401, 'Access token is missing') }
         const decoded = jwt.verify(token as string, config.secretkey) as { [key: string]: any };
 
-        if (decoded) { next(); }
-        else { return sendResponse(res, 403, 'Invalid token'); }
+        if (decoded) {
+
+            req.headers.userId = decoded._id;
+            next();
+
+        }
+        else { return sendResponse(res, 403, 'Unauthorized access'); }
 
     } catch (error: any) {
 
         console.error('JWT Error:', error.message);
-        return sendResponse(res, 403, 'Invalid token');
+        return sendResponse(res, 403, 'Unauthorized access');
 
     }
 

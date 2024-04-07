@@ -1,4 +1,4 @@
-import { Express, json, urlencoded } from 'express';
+import express, { Express, json, urlencoded } from 'express';
 import 'express-async-errors';
 import cors from 'cors';
 import helmet from 'helmet';
