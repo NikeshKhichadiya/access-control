@@ -1,12 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { sendResponse } from '../../helpers/sendResponse';
 import { createFileID } from '../../helpers/fileHash';
-import { aes128DecryptFile, aes256DecryptFile, getFile, tripleDesDecryptFile } from '../../helpers/decrypt';
-import { aes128EncryptFile, aes256EncryptFile, storeFile, tripleDesEncryptFile } from '../../helpers/encrypt';
+import { aes128DecryptFile, aes256DecryptFile, getFile, chacha20DecryptFile } from '../../helpers/decrypt';
+import { aes128EncryptFile, aes256EncryptFile, storeFile, chacha20EncryptFile } from '../../helpers/encrypt';
 import path, { join } from 'path';
 import fs from 'fs';
 import { tmpdir } from 'os';
 import { File } from '../../models/file';
+import { performance } from 'perf_hooks';
+import { memoryUsage } from 'process';
 
 export const uploadFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 
@@ -15,45 +17,66 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
     const { path } = req.file;
     const tempPath = join(tmpdir(), req.file.filename); // Temporary file path
     const fileId = await createFileID(path);
-    const data = await File.findOne({ user_id: req.headers.userId, file_id: fileId });
-
-    if (!!data) {
-        fs.unlinkSync(path);
-        return sendResponse(res, 400, 'File already exists');
-    }
 
     // Copy the uploaded file to a temporary location
     await fs.promises.copyFile(path, tempPath);
 
     let result;
+    let startTime, endTime, startMemory, endMemory;
+    let encryptionName = '';
 
     try {
+
+        startTime = performance.now();
+        startMemory = memoryUsage().heapUsed;
+
         if (req.params['confidentiality'] === 'high') {
 
             const encryptedFile = `${path}.high.${fileId}`;
             result = await aes256EncryptFile(tempPath, encryptedFile);
+            encryptionName = 'AES-256';
 
-        } else if (req.params['confidentiality'] === 'medium') {
+        }
+
+        else if (req.params['confidentiality'] === 'medium') {
 
             const encryptedFile = `${path}.medium.${fileId}`;
             result = await aes128EncryptFile(tempPath, encryptedFile);
+            encryptionName = 'AES-128';
 
-        } else if (req.params['confidentiality'] === 'low') {
+        }
+
+        else if (req.params['confidentiality'] === 'low') {
 
             const encryptedFile = `${path}.low.${fileId}`;
-            result = await tripleDesEncryptFile(tempPath, encryptedFile);
+            result = await chacha20EncryptFile(tempPath, encryptedFile);
+            encryptionName = 'Triple DES';
 
-        } else if (req.params['confidentiality'] === 'none') {
+        }
+
+        else if (req.params['confidentiality'] === 'none') {
 
             const encryptedFile = `${path}.none.${fileId}`;
             result = await storeFile(tempPath, encryptedFile);
-
-        } else {
-
-            const encryptedFile = `${path}.medium.${fileId}`;
-            result = await tripleDesEncryptFile(tempPath, encryptedFile);
+            encryptionName = 'No encryption';
 
         }
+
+        else {
+
+            const encryptedFile = `${path}.medium.${fileId}`;
+            result = await aes128EncryptFile(tempPath, encryptedFile);
+            encryptionName = 'AES-128';
+
+        }
+
+        endTime = performance.now();
+        endMemory = memoryUsage().heapUsed;
+
+        // Output time, memory usage, and encryption name
+        console.log(`Encryption Algorithm: ${encryptionName}`);
+        console.log(`Time taken: ${endTime - startTime} milliseconds`);
+        console.log(`Memory used: ${endMemory - startMemory} bytes`);
 
         // Create a new File document
         const newFile = new File({
@@ -77,6 +100,7 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
 
     sendResponse(res, 200, result);
 };
+
 export const downloadFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 
     try {
@@ -98,7 +122,7 @@ export const downloadFile = async (req: Request, res: Response, next: NextFuncti
             switch (data.enc_level) {
                 case 'high': await aes256DecryptFile(filePath, decryptedFilePath); break;
                 case 'medium': await aes128DecryptFile(filePath, decryptedFilePath); break;
-                case 'low': await tripleDesDecryptFile(filePath, decryptedFilePath); break;
+                case 'low': await chacha20DecryptFile(filePath, decryptedFilePath); break;
                 case 'none': await getFile(filePath, decryptedFilePath); break;
                 default: await aes128DecryptFile(filePath, decryptedFilePath); break;
             }

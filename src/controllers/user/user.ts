@@ -52,6 +52,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     }
 
-    return sendResponse(res, 400, 'Invalid cradantials');
+    return sendResponse(res, 400, 'Invalid credentials');
 
 }
