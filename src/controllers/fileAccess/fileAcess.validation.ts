@@ -2,8 +2,7 @@ import Joi from 'joi';
 
 export const fileAccessValidation = async (data: any): Promise<any> => {
 
-    return Joi.object({
-
+    const schema = Joi.object({
         user_id: Joi.string().trim().regex(/^[0-9a-fA-F]{24}$/).required().label("User ID").messages({
             'any.required': 'User ID is required.',
             'string.pattern.base': 'User ID must be a valid MongoDB ObjectId.'
@@ -16,7 +15,23 @@ export const fileAccessValidation = async (data: any): Promise<any> => {
             'any.required': 'Access Type is required.',
             'any.only': 'Access Type must be either "read" or "write".'
         }),
+    });
 
-    }).validate(data, { abortEarly: false });
+    return schema.validate(data, { abortEarly: false });
+}
 
+export const removeFileValidation = async (data: any): Promise<any> => {
+
+    const schema = Joi.object({
+        user_id: Joi.string().trim().regex(/^[0-9a-fA-F]{24}$/).required().label("User ID").messages({
+            'any.required': 'User ID is required.',
+            'string.pattern.base': 'User ID must be a valid MongoDB ObjectId.'
+        }),
+        file_id: Joi.string().trim().regex(/^[0-9a-fA-F]{24}$/).required().label("File ID").messages({
+            'any.required': 'File ID is required.',
+            'string.pattern.base': 'File ID must be a valid MongoDB ObjectId.'
+        })
+    });
+
+    return schema.validate(data, { abortEarly: false });
 }

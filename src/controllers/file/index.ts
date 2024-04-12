@@ -28,8 +28,8 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Extract file path and create a temporary file path
-    const { path } = req.file;
-    const tempPath = join(tmpdir(), req.file.filename);
+    const { path, filename } = req.file;
+    const tempPath = join(tmpdir(), filename);
 
     // Generate a unique file ID
     const fileId = await createFileID(path);
@@ -84,17 +84,19 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
         endTime = performance.now();
         endMemory = memoryUsage().heapUsed;
 
-        // Log encryption details
+        // Log encryption details including filename
         console.log(`Encryption Algorithm: ${encryptionName}`);
+        console.log(`File Name: ${filename}`);
         console.log(`Time taken: ${endTime - startTime} milliseconds`);
-        console.log(`Memory used: ${endMemory - startMemory} bytes`);
+        console.log(`Memory used: ${(endMemory - startMemory) / 1024} KB`); // Convert bytes to KB
+        console.log(" "); // Convert bytes to KB
 
         // Create a new File document
         const newFile = new File({
             user_id: req.headers.userId,
             file_id: fileId,
             enc_level: req.params['confidentiality'] || 'medium',
-            fileName: req.file.filename
+            fileName: filename // Include file name
         });
 
         // Save the new File document to the database
