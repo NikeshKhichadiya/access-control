@@ -4,10 +4,21 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "set NODE_ENV=development && nodemon ./src/index.ts",
-    "build": "tsc",
-    "serve": "npm run build && node dist/index.js"
+    "start": "tsc && node dist/index.js",
+    "dev": "concurrently \"npx tsc -w\" \"npx nodemon dist/index.js\"",
+    "watch:build": "tsc -w",
+    "start:watch": "nodemon dist/index.js",
+    "stop": "echo 'Stopping the application' && exit 0",
+    "serve": "npm run watch:build && npm run start:watch"
+  },
+  "nodemonConfig": {
+    "verbose": true,
+    "watch": [
+      "dist/**/*.js"
+    ],
+    "exec": "node dist/index.js",
+    "pollingInterval": 100,
+    "legacyWatch": true
   },
   "keywords": [],
   "author": "",
@@ -22,10 +33,13 @@
     "@types/node": "^20.12.2",
     "@types/nodemon": "^1.19.6",
     "@types/uuid": "^9.0.8",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.0",
+    "npm-run-all": "^4.1.5",
     "supervisor": "^0.12.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "cors": "^2.8.5",

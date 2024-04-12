@@ -9,7 +9,6 @@ const fileSchema = new Schema({
     file_id: {
         type: String,
         required: [true, "'file_id' is a required field"],
-        unique: true,
         trim: true
     },
     enc_level: {

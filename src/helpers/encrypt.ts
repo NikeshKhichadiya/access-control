@@ -60,30 +60,47 @@ export const aes128EncryptFile = async (inputFile: string, outputFile: string): 
 
 };
 
-export const tripleDesEncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+import * as crypto from 'crypto';
+
+export const chacha20EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
     try {
-        const key = config.tripleDesKey; // Your Triple DES key from the config
-        const fileContent = await readFileSync(inputFile);
+        // Read file content
+        const fileContent = await fs.promises.readFile(inputFile, 'utf8');
 
-        // Convert file content to word array
-        const wordArray = CryptoJS.enc.Utf8.parse(fileContent.toString());
+        // Convert data string to buffer
+        const dataBuffer = Buffer.from(fileContent, 'utf8');
 
-        // Encrypt using Triple DES
-        const encrypted = CryptoJS.TripleDES.encrypt(wordArray, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7
+        // Generate a random 12-byte nonce
+        const iv = crypto.randomBytes(12);
+
+        // Create a ChaCha20-Poly1305 cipher object
+        const cipher = crypto.createCipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), iv, {
+            authTagLength: 16
         });
 
-        // Write encrypted data to output file
-        await writeFileSync(outputFile, encrypted.toString());
+        // Encrypt the data buffer
+        const encryptedData = Buffer.concat([
+            cipher.update(dataBuffer),
+            cipher.final()
+        ]);
 
-        return 'File uploaded successfully';
-    }
-    catch (error: any) {
+        // Get the authentication tag
+        const tag = cipher.getAuthTag();
+
+        // Concatenate IV, tag, and encrypted data
+        const finalData = Buffer.concat([iv, tag, encryptedData]).toString('hex');
+
+        // Write the encrypted data to the output file
+        await fs.promises.writeFile(outputFile, finalData);
+
+        return 'File encrypted successfully';
+    } catch (error: any) {
+        // Log and throw an error if encryption fails
         console.error('Encryption Error:', error.message);
         throw new Error('Encryption failed');
     }
 };
+
 
 export const storeFile = async (inputFile: string, outputFile: string): Promise<string> => {
     try {

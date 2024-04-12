@@ -8,7 +8,7 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
     try {
 
         const token = req.headers['access-token'];
-        if (!token) { return sendResponse(res, 401, 'Access token is missing') }
+        if (!token) { return sendResponse(res, 401, 'Unauthorized access') }
         const decoded = jwt.verify(token as string, config.secretkey) as { [key: string]: any };
 
         if (decoded) {
@@ -17,12 +17,12 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
             next();
 
         }
-        else { return sendResponse(res, 403, 'Unauthorized access'); }
+        else { return sendResponse(res, 401, 'Unauthorized access'); }
 
     } catch (error: any) {
 
         console.error('JWT Error:', error.message);
-        return sendResponse(res, 403, 'Unauthorized access');
+        return sendResponse(res, 401, 'Unauthorized access');
 
     }
 

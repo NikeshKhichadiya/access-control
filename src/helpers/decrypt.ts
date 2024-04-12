@@ -2,6 +2,7 @@ import fs from 'fs';
 import CryptoJS from 'crypto-js';
 import { config } from '../config';
 import path from 'path';
+import * as crypto from 'crypto';
 
 export const aes256DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
 
@@ -61,32 +62,41 @@ export const aes128DecryptFile = async (inputFile: string, outputFile: string): 
     }
 };
 
-export const tripleDesDecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
     try {
-        if (!fs.existsSync(inputFile)) {
-            throw new Error('Encrypted file not found');
-        }
+        // Read the encrypted data from the input file
+        const encryptedDataHex = await fs.promises.readFile(inputFile, 'utf8');
 
-        const key = config.tripleDesKey;
-        const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
+        // Convert the encrypted data from hexadecimal string to Buffer
+        const encryptedData = Buffer.from(encryptedDataHex, 'hex');
 
-        const outputDir = path.dirname(outputFile);
+        // Extract the IV, authentication tag, and encrypted data
+        const iv = encryptedData.slice(0, 12);
+        const tag = encryptedData.slice(12, 28);
+        const encryptedDataOnly = encryptedData.slice(28);
 
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        const decrypted = CryptoJS.TripleDES.decrypt(encryptedContent, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7
+        // Create a ChaCha20-Poly1305 decipher object
+        const decipher = crypto.createDecipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), iv, {
+            authTagLength: 16
         });
 
-        const decryptedContent = decrypted.toString(CryptoJS.enc.Utf8);
-        await fs.promises.writeFile(outputFile, decryptedContent, 'binary');
+        // Set the authentication tag
+        decipher.setAuthTag(tag);
 
+        // Decrypt the data buffer
+        const decryptedData = Buffer.concat([
+            decipher.update(encryptedDataOnly),
+            decipher.final()
+        ]);
+
+        // Write the decrypted data to the output file
+        await fs.promises.writeFile(outputFile, decryptedData);
+
+        console.log('File decrypted successfully');
     } catch (error: any) {
+        // Log and throw an error if decryption fails
         console.error('Decryption Error:', error.message);
-        throw error;
+        throw new Error('Decryption failed');
     }
 };
 
