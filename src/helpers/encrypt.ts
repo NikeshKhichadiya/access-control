@@ -45,7 +45,7 @@ export const aes128EncryptFile = async (inputFile: string, outputFile: string): 
         const encrypted = CryptoJS.AES.encrypt(wordArray, key, {
             mode: CryptoJS.mode.CFB,
             padding: CryptoJS.pad.Pkcs7,
-            keySize: 128 / 32
+            keySize: 128 / 8
         });
 
         await writeFileSync(outputFile, encrypted.toString());

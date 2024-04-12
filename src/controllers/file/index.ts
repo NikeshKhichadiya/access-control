@@ -21,7 +21,6 @@ const dataPicker = (data: any): FileState => {
 }
 
 export const uploadFile = async (req: Request, res: Response): Promise<void> => {
-
     // Check if a file was uploaded
     if (!req.file) {
         return sendResponse(res, 400, 'No file uploaded');
@@ -38,17 +37,18 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     await fs.promises.copyFile(path, tempPath);
 
     let result;
-    let startTime, endTime, startMemory, endMemory;
+    let startTime, endTime;
     let encryptionName = '';
 
     try {
-        // Start measuring time and memory usage
+        // Start measuring time
         startTime = performance.now();
-        startMemory = memoryUsage().heapUsed;
+
+        // Measure memory usage before the encryption process
+        const startMemoryUsage = process.memoryUsage().heapUsed;
 
         // Determine the encryption level based on the request parameter
         switch (req.params['confidentiality']) {
-
             case 'high':
                 const encryptedFileHigh = `${path}.high.${fileId}`;
                 result = await aes256EncryptFile(tempPath, encryptedFileHigh);
@@ -63,8 +63,8 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
 
             case 'low':
                 const encryptedFileLow = `${path}.low.${fileId}`;
-                result = await chacha20EncryptFile(tempPath, encryptedFileLow); // Changed from Triple DES to ChaCha20
-                encryptionName = 'ChaCha20'; // Updated encryption name
+                result = await chacha20EncryptFile(tempPath, encryptedFileLow);
+                encryptionName = 'ChaCha20';
                 break;
 
             case 'none':
@@ -80,16 +80,17 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
                 break;
         }
 
-        // Stop measuring time and memory usage
-        endTime = performance.now();
-        endMemory = memoryUsage().heapUsed;
+        // Measure memory usage after the encryption process
+        const endMemoryUsage = process.memoryUsage().heapUsed;
 
-        // Log encryption details including filename
+        // Stop measuring time
+        endTime = performance.now();
+
+        // Log encryption details
         console.log(`Encryption Algorithm: ${encryptionName}`);
         console.log(`File Name: ${filename}`);
         console.log(`Time taken: ${endTime - startTime} milliseconds`);
-        console.log(`Memory used: ${(endMemory - startMemory) / 1024} KB`); // Convert bytes to KB
-        console.log(" "); // Convert bytes to KB
+        console.log(" ")
 
         // Create a new File document
         const newFile = new File({
