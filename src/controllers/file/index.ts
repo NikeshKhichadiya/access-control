@@ -118,15 +118,17 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     sendResponse(res, 200, result);
 };
 
-export const downloadFile = async (req: Request, res: Response): Promise<void> => {
+export const obtainFile = async (req: Request, res: Response): Promise<void> => {
 
     let { file_id }: FileState = dataPicker(req.body);
     let { error } = await fileValidation(req.body);
     if (error) throw error;
 
     const user_id = req.headers.userId;
+
     const data = await File.findOne({ user_id: user_id, _id: file_id });
 
+    // The file is owner
     if (!!data) {
 
         const filePath = path.join(__dirname, `../../../files/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
@@ -159,7 +161,19 @@ export const downloadFile = async (req: Request, res: Response): Promise<void> =
         setTimeout(() => { fs.unlinkSync(decryptedFilePath) }, 100);
     }
 
-    else { sendResponse(res, 400, 'No file found'); }
+    else {
+
+        // Other user trying to access the file
+        if (!!req.headers['access-data-token']) {
+
+            const dataToken = req.headers['access-data-token'];
+
+
+        }
+
+        else { sendResponse(res, 400, 'No file found'); }
+
+    }
 
 };
 

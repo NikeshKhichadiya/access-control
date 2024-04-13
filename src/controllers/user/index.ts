@@ -4,7 +4,7 @@ import { sendResponse } from "../../helpers/sendResponse";
 import { User } from "../../models/user";
 import { UserState } from "./user.model";
 import { userValidation } from "./user.validation";
-import { generateToken } from "../../middleware/token";
+import { generateDataToken, generateToken } from "../../middleware/token";
 
 let dataPicker = (data: any): UserState => {
 
@@ -42,6 +42,35 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         const token: string = generateToken(payload);
+
+        if (!!token) {
+
+            res.setHeader('access-token', token);
+            return sendResponse(res, 200, 'Login successfully')
+
+        }
+
+    }
+
+    return sendResponse(res, 400, 'Invalid credentials');
+
+}
+
+export const dataTokenLogin = async (req: Request, res: Response): Promise<void> => {
+
+    let data: UserState = dataPicker(req.body);
+
+    let { error } = await userValidation(data);
+    if (error) throw error;
+
+    const user = await User.findOne({ email: data.email, password: data.password });
+    if (!!user) {
+
+        let payload = {
+            _id: user._id
+        }
+
+        const token: string = generateDataToken(payload);
 
         if (!!token) {
 

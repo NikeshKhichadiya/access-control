@@ -12,7 +12,6 @@
     "serve": "npm run watch:build && npm run start:watch"
   },
   "nodemonConfig": {
-    "verbose": true,
     "watch": [
       "dist/**/*.js"
     ],

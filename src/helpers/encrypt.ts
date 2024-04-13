@@ -2,73 +2,62 @@ import fs from 'fs';
 import CryptoJS from 'crypto-js';
 import { promisify } from 'util';
 import { config } from '../config';
+import * as crypto from 'crypto';
+import { createReadStream, createWriteStream } from 'fs';
+import { pipeline } from 'stream';
 
-const readFileSync = promisify(fs.readFile);
-const writeFileSync = promisify(fs.writeFile);
+const pipelineAsync = promisify(pipeline);
 
 export const aes256EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
 
     try {
+        const key: string = config.aes256key;
 
-        const key = config.aes256key;
-        const fileContent = await readFileSync(inputFile);
-        const wordArray = CryptoJS.enc.Utf8.parse(fileContent.toString());
-        const encrypted = CryptoJS.AES.encrypt(wordArray, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7,
-            keySize: 256 / 32
-        });
+        const readStream = createReadStream(inputFile);
+        const writeStream = createWriteStream(outputFile);
 
-        await writeFileSync(outputFile, encrypted.toString());
+        const cipher = crypto.createCipheriv('aes-256-cfb', Buffer.from(key, 'hex'), Buffer.alloc(16));
+        await pipelineAsync(readStream, cipher, writeStream);
 
         return 'File uploaded successfully';
 
-    }
-    catch (error: any) {
+    } catch (error: any) {
 
         console.error('Encryption Error:', error.message);
         throw new Error('Encryption failed');
 
     }
-
 };
 
 export const aes128EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
 
     try {
 
-        const key = config.aes128key;
-        const fileContent = await readFileSync(inputFile);
+        const key: string = config.aes128key;
 
-        const wordArray = CryptoJS.enc.Utf8.parse(fileContent.toString());
+        const readStream = createReadStream(inputFile);
+        const writeStream = createWriteStream(outputFile);
 
-        const encrypted = CryptoJS.AES.encrypt(wordArray, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7,
-            keySize: 128 / 8
-        });
+        const cipher = crypto.createCipheriv('aes-128-cfb', Buffer.from(key, 'hex'), Buffer.alloc(16));
 
-        await writeFileSync(outputFile, encrypted.toString());
+        await pipelineAsync(readStream, cipher, writeStream);
         return 'File uploaded successfully';
 
-    }
+    } catch (error: any) {
 
-    catch (error: any) {
         console.error('Encryption Error:', error.message);
         throw new Error('Encryption failed');
+
     }
 
 };
 
-import * as crypto from 'crypto';
-
 export const chacha20EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
-    try {
-        // Read file content
-        const fileContent = await fs.promises.readFile(inputFile, 'utf8');
 
-        // Convert data string to buffer
-        const dataBuffer = Buffer.from(fileContent, 'utf8');
+    try {
+
+        const readStream = fs.createReadStream(inputFile);
+        const writeStream = fs.createWriteStream(outputFile);
 
         // Generate a random 12-byte nonce
         const iv = crypto.randomBytes(12);
@@ -78,29 +67,23 @@ export const chacha20EncryptFile = async (inputFile: string, outputFile: string)
             authTagLength: 16
         });
 
-        // Encrypt the data buffer
-        const encryptedData = Buffer.concat([
-            cipher.update(dataBuffer),
-            cipher.final()
-        ]);
+        // Pipe the input file stream through the cipher and then to the output file stream
+        readStream.pipe(cipher).pipe(writeStream);
 
-        // Get the authentication tag
-        const tag = cipher.getAuthTag();
-
-        // Concatenate IV, tag, and encrypted data
-        const finalData = Buffer.concat([iv, tag, encryptedData]).toString('hex');
-
-        // Write the encrypted data to the output file
-        await fs.promises.writeFile(outputFile, finalData);
+        // Wait for the encryption process to finish
+        await new Promise((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+        });
 
         return 'File encrypted successfully';
+
     } catch (error: any) {
         // Log and throw an error if encryption fails
         console.error('Encryption Error:', error.message);
         throw new Error('Encryption failed');
     }
 };
-
 
 export const storeFile = async (inputFile: string, outputFile: string): Promise<string> => {
     try {
