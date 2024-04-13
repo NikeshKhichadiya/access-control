@@ -1,9 +1,7 @@
-import fs from 'fs';
-import CryptoJS from 'crypto-js';
 import { promisify } from 'util';
 import { config } from '../config';
 import * as crypto from 'crypto';
-import { createReadStream, createWriteStream } from 'fs';
+import fs, { createReadStream, createWriteStream, accessSync, copyFileSync } from 'fs';
 import { pipeline } from 'stream';
 
 const pipelineAsync = promisify(pipeline);
@@ -52,12 +50,36 @@ export const aes128EncryptFile = async (inputFile: string, outputFile: string): 
 
 };
 
+// export const chacha20EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+//     const readStream = fs.createReadStream(inputFile);
+//     const writeStream = fs.createWriteStream(outputFile);
+//     const iv = crypto.randomBytes(12);
+//     const cipher = crypto.createCipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), Buffer.from(config.chacha20_iv, 'hex'), { authTagLength: 16 });
+
+//     writeStream.write(iv);
+
+//     readStream.pipe(cipher).pipe(writeStream);
+
+//     return new Promise((resolve, reject) => {
+//         writeStream.on('finish', () => {
+//             console.log('File encrypted successfully');
+//             resolve('File encrypted successfully');
+//         });
+
+//         cipher.on('error', (error) => {
+//             console.error('Encryption Error:', error.message);
+//             reject(new Error('Encryption failed'));
+//         });
+//     });
+// };
+
 export const chacha20EncryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
-
     try {
+        // Read file content
+        const fileContent = await fs.promises.readFile(inputFile, 'utf8');
 
-        const readStream = fs.createReadStream(inputFile);
-        const writeStream = fs.createWriteStream(outputFile);
+        // Convert data string to buffer
+        const dataBuffer = Buffer.from(fileContent, 'utf8');
 
         // Generate a random 12-byte nonce
         const iv = crypto.randomBytes(12);
@@ -67,17 +89,22 @@ export const chacha20EncryptFile = async (inputFile: string, outputFile: string)
             authTagLength: 16
         });
 
-        // Pipe the input file stream through the cipher and then to the output file stream
-        readStream.pipe(cipher).pipe(writeStream);
+        // Encrypt the data buffer
+        const encryptedData = Buffer.concat([
+            cipher.update(dataBuffer),
+            cipher.final()
+        ]);
 
-        // Wait for the encryption process to finish
-        await new Promise((resolve, reject) => {
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-        });
+        // Get the authentication tag
+        const tag = cipher.getAuthTag();
+
+        // Concatenate IV, tag, and encrypted data
+        const finalData = Buffer.concat([iv, tag, encryptedData]).toString('hex');
+
+        // Write the encrypted data to the output file
+        await fs.promises.writeFile(outputFile, finalData);
 
         return 'File encrypted successfully';
-
     } catch (error: any) {
         // Log and throw an error if encryption fails
         console.error('Encryption Error:', error.message);

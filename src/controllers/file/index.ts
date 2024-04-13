@@ -39,13 +39,14 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     let result;
     let startTime, endTime;
     let encryptionName = '';
+    let startMemoryUsage, endMemoryUsage;
 
     try {
         // Start measuring time
         startTime = performance.now();
 
         // Measure memory usage before the encryption process
-        const startMemoryUsage = process.memoryUsage().heapUsed;
+        startMemoryUsage = process.memoryUsage().heapUsed;
 
         // Determine the encryption level based on the request parameter
         switch (req.params['confidentiality']) {
@@ -54,25 +55,21 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
                 result = await aes256EncryptFile(tempPath, encryptedFileHigh);
                 encryptionName = 'AES-256';
                 break;
-
             case 'medium':
                 const encryptedFileMedium = `${path}.medium.${fileId}`;
                 result = await aes128EncryptFile(tempPath, encryptedFileMedium);
                 encryptionName = 'AES-128';
                 break;
-
             case 'low':
                 const encryptedFileLow = `${path}.low.${fileId}`;
                 result = await chacha20EncryptFile(tempPath, encryptedFileLow);
                 encryptionName = 'ChaCha20';
                 break;
-
             case 'none':
                 const encryptedFileNone = `${path}.none.${fileId}`;
                 result = await storeFile(tempPath, encryptedFileNone);
                 encryptionName = 'No encryption';
                 break;
-
             default:
                 const encryptedFileDefault = `${path}.medium.${fileId}`;
                 result = await aes128EncryptFile(tempPath, encryptedFileDefault);
@@ -81,7 +78,7 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
         }
 
         // Measure memory usage after the encryption process
-        const endMemoryUsage = process.memoryUsage().heapUsed;
+        endMemoryUsage = process.memoryUsage().heapUsed;
 
         // Stop measuring time
         endTime = performance.now();
@@ -90,13 +87,24 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
         console.log(`Encryption Algorithm: ${encryptionName}`);
         console.log(`File Name: ${filename}`);
         console.log(`Time taken: ${endTime - startTime} milliseconds`);
-        console.log(" ")
+        // console.log(`Memory used: ${endMemoryUsage - startMemoryUsage} bytes`);
+        console.log(` `);
 
         // Create a new File document
         const newFile = new File({
             user_id: req.headers.userId,
             file_id: fileId,
-            enc_level: req.params['confidentiality'] || 'medium',
+            enc_level: (() => {
+                switch (req.params['confidentiality']) {
+                    case 'none':
+                    case 'low':
+                    case 'medium':
+                    case 'high':
+                        return req.params['confidentiality'];
+                    default:
+                        return 'medium';
+                }
+            })(),
             fileName: filename // Include file name
         });
 

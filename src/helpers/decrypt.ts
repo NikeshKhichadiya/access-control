@@ -1,66 +1,66 @@
-import fs from 'fs';
-import CryptoJS from 'crypto-js';
 import { config } from '../config';
 import path from 'path';
-import * as crypto from 'crypto';
+import fs, { createReadStream, createWriteStream } from 'fs';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import crypto from 'crypto';
 
-export const aes256DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+const pipelineAsync = promisify(pipeline);
 
+export const aes256DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
     try {
+        const key: string = config.aes256key;
 
-        if (!fs.existsSync(inputFile)) { throw new Error('Encrypted file not found'); }
+        const readStream = createReadStream(inputFile);
+        const writeStream = createWriteStream(outputFile);
 
-        const key = config.aes256key;
-        const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
-        const outputDir = path.dirname(outputFile);
+        const decipher = crypto.createDecipheriv('aes-256-cfb', Buffer.from(key, 'hex'), Buffer.alloc(16));
+        await pipelineAsync(readStream, decipher, writeStream);
 
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        const decrypted = CryptoJS.AES.decrypt(encryptedContent, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7,
-            keySize: 256 / 32
-        });
-
-        const decryptedContent = decrypted.toString(CryptoJS.enc.Utf8);
-        await fs.promises.writeFile(outputFile, decryptedContent, 'binary');
-
+        return 'File decrypted successfully';
     } catch (error: any) {
-        throw error;
+        console.error('Decryption Error:', error.message);
+        throw new Error('Decryption failed');
     }
 };
 
-export const aes128DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+export const aes128DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
     try {
-        if (!fs.existsSync(inputFile)) {
-            throw new Error('Encrypted file not found');
-        }
+        const key: string = config.aes128key;
 
-        const key = config.aes128key;
-        const encryptedContent = await fs.promises.readFile(inputFile, 'binary');
+        const readStream = createReadStream(inputFile);
+        const writeStream = createWriteStream(outputFile);
 
-        const outputDir = path.dirname(outputFile);
+        const decipher = crypto.createDecipheriv('aes-128-cfb', Buffer.from(key, 'hex'), Buffer.alloc(16));
 
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        const decrypted = CryptoJS.AES.decrypt(encryptedContent, key, {
-            mode: CryptoJS.mode.CFB,
-            padding: CryptoJS.pad.Pkcs7,
-            keySize: 128 / 32
-        });
-
-        const decryptedContent = decrypted.toString(CryptoJS.enc.Utf8);
-        await fs.promises.writeFile(outputFile, decryptedContent, 'binary');
+        await pipelineAsync(readStream, decipher, writeStream);
+        return 'File decrypted successfully';
 
     } catch (error: any) {
         console.error('Decryption Error:', error.message);
-        throw error;
+        throw new Error('Decryption failed');
     }
 };
+
+// export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
+//     const readStream = fs.createReadStream(inputFile);
+//     const writeStream = fs.createWriteStream(outputFile);
+//     const decipher = crypto.createDecipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), Buffer.from(config.chacha20_iv, 'hex'), { authTagLength: 16 });
+
+//     readStream.pipe(decipher).pipe(writeStream);
+
+//     return new Promise((resolve, reject) => {
+//         writeStream.on('finish', () => {
+//             console.log('File decrypted successfully');
+//             resolve();
+//         });
+
+//         decipher.on('error', (error) => {
+//             console.error('Decryption Error:', error.message);
+//             reject(new Error('Decryption failed'));
+//         });
+//     });
+// };
 
 export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
     try {
@@ -99,6 +99,7 @@ export const chacha20DecryptFile = async (inputFile: string, outputFile: string)
         throw new Error('Decryption failed');
     }
 };
+
 
 export const getFile = async (inputFile: string, outputFile: string): Promise<void> => {
     try {
