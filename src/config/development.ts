@@ -13,5 +13,7 @@ export const developmentConfig: any = {
     aes128key: "ca46a7b50c11d1ccf47b85e245ab9e55",
     chacha20_key: "3c31d47df8d709cf12ad0dea4d3ed5501986930cbb22702b5a4ac18fc5e5af7b",
     chacha20_iv: "21a660991c962595e4a853cc",
+    chacha20_authTag: "1234567890123456",
+    dataTokenSecreateKey: "ee2c3001817f3bcc354462aaf4ec80d6a9827820287de71ab131e986466b4deb"
 
 }

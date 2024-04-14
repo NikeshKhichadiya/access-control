@@ -74,7 +74,7 @@ export const dataTokenLogin = async (req: Request, res: Response): Promise<void>
 
         if (!!token) {
 
-            res.setHeader('access-token', token);
+            res.setHeader('access-data-token', token);
             return sendResponse(res, 200, 'Login successfully')
 
         }

@@ -27,3 +27,23 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
     }
 
 };
+
+export const decodeDataToken = (token: string | any): boolean => {
+
+    try {
+
+        if (!token) { return false }
+        const decoded = jwt.verify(token as string, config.dataTokenSecreateKey) as { [key: string]: any };
+
+        if (decoded) { return true }
+        else { return false }
+
+    }
+
+    catch (error: any) {
+
+        return false
+
+    }
+
+}

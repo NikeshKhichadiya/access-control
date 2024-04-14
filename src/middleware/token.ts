@@ -33,7 +33,7 @@ export const generateDataToken = (payload: any): string => {
             throw new Error('Invalid payload data');
         }
 
-        const token = jwt.sign(payload, config.secretkey, {
+        const token = jwt.sign(payload, config.dataTokenSecreateKey, {
             expiresIn: '24h',
             algorithm: 'HS256'
         });

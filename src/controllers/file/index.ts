@@ -13,6 +13,7 @@ import _ from 'lodash';
 import { FileState } from './file.model';
 import { fileValidation } from './file.validation';
 import { FileAccess } from '../../models/fileAccess';
+import { decodeDataToken } from '../../middleware';
 
 const dataPicker = (data: any): FileState => {
 
@@ -133,57 +134,76 @@ export const obtainFile = async (req: Request, res: Response): Promise<void> => 
     if (error) throw error;
 
     const user_id = req.headers.userId;
-
-    const data = await File.findOne({ user_id: user_id, _id: file_id });
+    const data = await File.findOne({ _id: file_id });
 
     // The file is owner
     if (!!data) {
 
-        const filePath = path.join(__dirname, `../../../files/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
-        const decryptedFilePath = path.join(__dirname, `../../../temp/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
-
-        const filesDir = path.join(__dirname, `../../../files/${user_id}`);
-        const tempDir = path.join(__dirname, '../../../temp');
-
-        if (!fs.existsSync(filesDir)) { fs.mkdirSync(filesDir, { recursive: true }); }
-        if (!fs.existsSync(tempDir)) { fs.mkdirSync(tempDir, { recursive: true }); }
-
-        if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'Encrypted file not found'); }
-
-        switch (data.enc_level) {
-            case 'high': await aes256DecryptFile(filePath, decryptedFilePath); break;
-            case 'medium': await aes128DecryptFile(filePath, decryptedFilePath); break;
-            case 'low': await chacha20DecryptFile(filePath, decryptedFilePath); break;
-            case 'none': await getFile(filePath, decryptedFilePath); break;
-            default: await aes128DecryptFile(filePath, decryptedFilePath); break;
-        }
-
-        if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 400, 'Decryption failed'); }
-
-        res.setHeader('Content-Disposition', `attachment; filename=${data?.fileName || ''}`);
-        res.setHeader('Content-Type', 'application/octet-stream');
-
-        const fileStream = fs.createReadStream(decryptedFilePath);
-        fileStream.pipe(res);
-
-        setTimeout(() => { fs.unlinkSync(decryptedFilePath) }, 100);
-    }
-
-    else {
-
-        // Other user trying to access the file
-        if (!!req.headers['access-data-token']) {
+        if (data?.user_id && (data.user_id.toString() !== user_id)) {
 
             const dataToken = req.headers['access-data-token'];
 
+            // Other user trying to access the file
+            if (dataToken) {
+
+                const isTokenValidate: boolean = decodeDataToken(dataToken)
+
+                if (isTokenValidate) {
+
+                    const access = await FileAccess.findOne({ user_id: user_id, file_id: file_id });
+
+                    if (!!access) { decrepyFile(req, res, data, data.user_id) }
+                    else { return sendResponse(res, 400, "You don't have access to the file") }
+
+                }
+
+                else { return sendResponse(res, 400, 'Unauthorized access for the file'); }
+
+            }
+
+            else { return sendResponse(res, 400, 'Unauthorized access for the file'); }
 
         }
 
-        else { sendResponse(res, 400, 'No file found'); }
-
+        else { decrepyFile(req, res, data, user_id) }
     }
 
-};
+    else { return sendResponse(res, 400, 'No file found'); }
+
+}
+
+const decrepyFile = async (req: Request, res: Response, data: any, user_id: any) => {
+
+    const filePath = path.join(__dirname, `../../../files/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
+    const decryptedFilePath = path.join(__dirname, `../../../temp/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
+
+    const filesDir = path.join(__dirname, `../../../files/${user_id}`);
+    const tempDir = path.join(__dirname, '../../../temp');
+
+    if (!fs.existsSync(filesDir)) { fs.mkdirSync(filesDir, { recursive: true }); }
+    if (!fs.existsSync(tempDir)) { fs.mkdirSync(tempDir, { recursive: true }); }
+
+    if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'Encrypted file not found'); }
+
+    switch (data.enc_level) {
+        case 'high': await aes256DecryptFile(filePath, decryptedFilePath); break;
+        case 'medium': await aes128DecryptFile(filePath, decryptedFilePath); break;
+        case 'low': await chacha20DecryptFile(filePath, decryptedFilePath); break;
+        case 'none': await getFile(filePath, decryptedFilePath); break;
+        default: await aes128DecryptFile(filePath, decryptedFilePath); break;
+    }
+
+    if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 400, 'Decryption failed'); }
+
+    res.setHeader('Content-Disposition', `attachment; filename=${data?.fileName || ''}`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+
+    const fileStream = fs.createReadStream(decryptedFilePath);
+    fileStream.pipe(res);
+
+    setTimeout(() => { fs.unlinkSync(decryptedFilePath) }, 100);
+
+}
 
 export const deleteFile = async (req: Request, res: Response): Promise<void> => {
 
