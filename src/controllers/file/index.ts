@@ -13,6 +13,7 @@ import _ from 'lodash';
 import { FileState } from './file.model';
 import { fileValidation } from './file.validation';
 import { FileAccess } from '../../models/fileAccess';
+import { decodeDataToken } from '../../middleware';
 
 const dataPicker = (data: any): FileState => {
 
@@ -21,7 +22,6 @@ const dataPicker = (data: any): FileState => {
 }
 
 export const uploadFile = async (req: Request, res: Response): Promise<void> => {
-
     // Check if a file was uploaded
     if (!req.file) {
         return sendResponse(res, 400, 'No file uploaded');
@@ -38,41 +38,39 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     await fs.promises.copyFile(path, tempPath);
 
     let result;
-    let startTime, endTime, startMemory, endMemory;
+    let startTime, endTime;
     let encryptionName = '';
+    let startMemoryUsage, endMemoryUsage;
 
     try {
-        // Start measuring time and memory usage
+        // Start measuring time
         startTime = performance.now();
-        startMemory = memoryUsage().heapUsed;
+
+        // Measure memory usage before the encryption process
+        startMemoryUsage = process.memoryUsage().heapUsed;
 
         // Determine the encryption level based on the request parameter
         switch (req.params['confidentiality']) {
-
             case 'high':
                 const encryptedFileHigh = `${path}.high.${fileId}`;
                 result = await aes256EncryptFile(tempPath, encryptedFileHigh);
                 encryptionName = 'AES-256';
                 break;
-
             case 'medium':
                 const encryptedFileMedium = `${path}.medium.${fileId}`;
                 result = await aes128EncryptFile(tempPath, encryptedFileMedium);
                 encryptionName = 'AES-128';
                 break;
-
             case 'low':
                 const encryptedFileLow = `${path}.low.${fileId}`;
-                result = await chacha20EncryptFile(tempPath, encryptedFileLow); // Changed from Triple DES to ChaCha20
-                encryptionName = 'ChaCha20'; // Updated encryption name
+                result = await chacha20EncryptFile(tempPath, encryptedFileLow);
+                encryptionName = 'ChaCha20';
                 break;
-
             case 'none':
                 const encryptedFileNone = `${path}.none.${fileId}`;
                 result = await storeFile(tempPath, encryptedFileNone);
                 encryptionName = 'No encryption';
                 break;
-
             default:
                 const encryptedFileDefault = `${path}.medium.${fileId}`;
                 result = await aes128EncryptFile(tempPath, encryptedFileDefault);
@@ -80,22 +78,34 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
                 break;
         }
 
-        // Stop measuring time and memory usage
-        endTime = performance.now();
-        endMemory = memoryUsage().heapUsed;
+        // Measure memory usage after the encryption process
+        endMemoryUsage = process.memoryUsage().heapUsed;
 
-        // Log encryption details including filename
+        // Stop measuring time
+        endTime = performance.now();
+
+        // Log encryption details
         console.log(`Encryption Algorithm: ${encryptionName}`);
         console.log(`File Name: ${filename}`);
         console.log(`Time taken: ${endTime - startTime} milliseconds`);
-        console.log(`Memory used: ${(endMemory - startMemory) / 1024} KB`); // Convert bytes to KB
-        console.log(" "); // Convert bytes to KB
+        // console.log(`Memory used: ${endMemoryUsage - startMemoryUsage} bytes`);
+        console.log(` `);
 
         // Create a new File document
         const newFile = new File({
             user_id: req.headers.userId,
             file_id: fileId,
-            enc_level: req.params['confidentiality'] || 'medium',
+            enc_level: (() => {
+                switch (req.params['confidentiality']) {
+                    case 'none':
+                    case 'low':
+                    case 'medium':
+                    case 'high':
+                        return req.params['confidentiality'];
+                    default:
+                        return 'medium';
+                }
+            })(),
             fileName: filename // Include file name
         });
 
@@ -117,50 +127,85 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     sendResponse(res, 200, result);
 };
 
-export const downloadFile = async (req: Request, res: Response): Promise<void> => {
+export const obtainFile = async (req: Request, res: Response): Promise<void> => {
 
     let { file_id }: FileState = dataPicker(req.body);
     let { error } = await fileValidation(req.body);
     if (error) throw error;
 
     const user_id = req.headers.userId;
-    const data = await File.findOne({ user_id: user_id, _id: file_id });
+    const data = await File.findOne({ _id: file_id });
 
+    // The file is owner
     if (!!data) {
 
-        const filePath = path.join(__dirname, `../../../files/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
-        const decryptedFilePath = path.join(__dirname, `../../../temp/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
+        if (data?.user_id && (data.user_id.toString() !== user_id)) {
 
-        const filesDir = path.join(__dirname, `../../../files/${user_id}`);
-        const tempDir = path.join(__dirname, '../../../temp');
+            const dataToken = req.headers['access-data-token'];
 
-        if (!fs.existsSync(filesDir)) { fs.mkdirSync(filesDir, { recursive: true }); }
-        if (!fs.existsSync(tempDir)) { fs.mkdirSync(tempDir, { recursive: true }); }
+            // Other user trying to access the file
+            if (dataToken) {
 
-        if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'Encrypted file not found'); }
+                const isTokenValidate: boolean = decodeDataToken(dataToken, req.ip || '')
 
-        switch (data.enc_level) {
-            case 'high': await aes256DecryptFile(filePath, decryptedFilePath); break;
-            case 'medium': await aes128DecryptFile(filePath, decryptedFilePath); break;
-            case 'low': await chacha20DecryptFile(filePath, decryptedFilePath); break;
-            case 'none': await getFile(filePath, decryptedFilePath); break;
-            default: await aes128DecryptFile(filePath, decryptedFilePath); break;
+                if (isTokenValidate) {
+
+                    const access = await FileAccess.findOne({ user_id: user_id, file_id: file_id });
+
+                    if (!!access) { decrepyFile(req, res, data, data.user_id) }
+                    else { return sendResponse(res, 400, "You don't have access to the file") }
+
+                }
+
+                else { return sendResponse(res, 400, 'Unauthorized access for the file'); }
+
+            }
+
+            else { return sendResponse(res, 400, 'Unauthorized access for the file'); }
+
         }
 
-        if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 400, 'Decryption failed'); }
-
-        res.setHeader('Content-Disposition', `attachment; filename=${data?.fileName || ''}`);
-        res.setHeader('Content-Type', 'application/octet-stream');
-
-        const fileStream = fs.createReadStream(decryptedFilePath);
-        fileStream.pipe(res);
-
-        setTimeout(() => { fs.unlinkSync(decryptedFilePath) }, 100);
+        else { decrepyFile(req, res, data, user_id) }
     }
 
-    else { sendResponse(res, 400, 'No file found'); }
+    else { return sendResponse(res, 400, 'No file found'); }
 
-};
+}
+
+const decrepyFile = async (req: Request, res: Response, data: any, user_id: any) => {
+
+    const filePath = path.join(__dirname, `../../../files/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
+    const decryptedFilePath = path.join(__dirname, `../../../temp/${user_id}/`, `${data?.fileName}.${data?.enc_level}.${data?.file_id}`);
+
+    const filesDir = path.join(__dirname, `../../../files/${user_id}`);
+    const tempDir = path.join(__dirname, '../../../temp');
+
+    if (!fs.existsSync(filesDir)) { fs.mkdirSync(filesDir, { recursive: true }); }
+    if (!fs.existsSync(tempDir)) { fs.mkdirSync(tempDir, { recursive: true }); }
+
+    if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'Encrypted file not found'); }
+
+    switch (data.enc_level) {
+        case 'high': { await aes256DecryptFile(filePath, decryptedFilePath); break };
+        case 'medium': { await aes128DecryptFile(filePath, decryptedFilePath); break };
+        case 'low': { await chacha20DecryptFile(filePath, decryptedFilePath); console.log('nikk'); break };
+        case 'none': { await getFile(filePath, decryptedFilePath); break };
+        default: {
+            await aes128DecryptFile(filePath, decryptedFilePath); break
+        };
+    }
+
+    if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 400, 'Decryption failed'); }
+
+    res.setHeader('Content-Disposition', `attachment; filename=${data?.fileName || ''}`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+
+    const fileStream = fs.createReadStream(decryptedFilePath);
+    fileStream.pipe(res);
+
+    setTimeout(() => { fs.unlinkSync(decryptedFilePath) }, 100);
+
+}
 
 export const deleteFile = async (req: Request, res: Response): Promise<void> => {
 

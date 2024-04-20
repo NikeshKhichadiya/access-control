@@ -9,8 +9,11 @@ export const developmentConfig: any = {
         name: 'access-control'
     },
     secretkey: "ea1103a3cada059453f5c13b659404527c664ddb3df870ce325a703484b2c9949b4c1fd787a9119a3dbf3e2744ae133896fcb73bbcda7df1fc803b02e4d01f11",
-    aes256key: "c86a5f65e2c0a1915a365d7f639f63edd21adbe1c1194a7801a1644d27a6e0ce",
-    aes128key: "4s7v$yB&E)H@McQw",
-    chacha20_key: "3c31d47df8d709cf12ad0dea4d3ed5501986930cbb22702b5a4ac18fc5e5af7b"
+    aes256key: "f578dc3c09acda4f1a8d3e9ce0d2a28db2b9776d47439272e611fc6d9e5fc12d",
+    aes128key: "ca46a7b50c11d1ccf47b85e245ab9e55",
+    chacha20_key: "3c31d47df8d709cf12ad0dea4d3ed5501986930cbb22702b5a4ac18fc5e5af7b",
+    chacha20_iv: "21a660991c962595e4a853cc",
+    chacha20_authTag: "54ed72ddda7fc0478c27fd9266da323e",
+    dataTokenSecreateKey: "ee2c3001817f3bcc354462aaf4ec80d6a9827820287de71ab131e986466b4deb"
 
 }

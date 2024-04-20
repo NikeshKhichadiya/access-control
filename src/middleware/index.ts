@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { sendResponse } from '../helpers/sendResponse';
+import { location } from '../helpers/location';
 
 export const middleware = (req: Request, res: Response, next: NextFunction) => {
 
@@ -27,3 +28,30 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
     }
 
 };
+
+export const decodeDataToken = (token: string | any, ip: string): boolean => {
+
+    try {
+
+        if (!token) { return false }
+        const decoded = jwt.verify(token as string, config.dataTokenSecreateKey) as { [key: string]: any };
+
+        if (decoded) {
+
+            const locationData = location(ip);
+            if (decoded.country === locationData.country && decoded.region === locationData.region && decoded.timezone === locationData.timezone) { return true }
+
+            return false
+        }
+
+        else { return false }
+
+    }
+
+    catch (error: any) {
+
+        return false
+
+    }
+
+}

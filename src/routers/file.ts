@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deleteFile, downloadFile, uploadFile } from "../controllers/file";
+import { deleteFile, obtainFile, uploadFile } from "../controllers/file";
 import multer from "multer";
 import path from "path";
 import fs from 'fs';
@@ -31,7 +31,7 @@ const upload = multer({ storage: storage }).single('file');
 const fileRouter = Router();
 
 fileRouter.post('/upload/:confidentiality', upload, uploadFile);
-fileRouter.post('/download', downloadFile);
+fileRouter.post('/download', obtainFile);
 fileRouter.post('/delete', deleteFile);
 
 export default fileRouter;
