@@ -146,7 +146,7 @@ export const obtainFile = async (req: Request, res: Response): Promise<void> => 
             // Other user trying to access the file
             if (dataToken) {
 
-                const isTokenValidate: boolean = decodeDataToken(dataToken)
+                const isTokenValidate: boolean = decodeDataToken(dataToken, req.ip || '')
 
                 if (isTokenValidate) {
 
@@ -186,11 +186,13 @@ const decrepyFile = async (req: Request, res: Response, data: any, user_id: any)
     if (!fs.existsSync(filePath)) { return sendResponse(res, 404, 'Encrypted file not found'); }
 
     switch (data.enc_level) {
-        case 'high': await aes256DecryptFile(filePath, decryptedFilePath); break;
-        case 'medium': await aes128DecryptFile(filePath, decryptedFilePath); break;
-        case 'low': await chacha20DecryptFile(filePath, decryptedFilePath); break;
-        case 'none': await getFile(filePath, decryptedFilePath); break;
-        default: await aes128DecryptFile(filePath, decryptedFilePath); break;
+        case 'high': { await aes256DecryptFile(filePath, decryptedFilePath); break };
+        case 'medium': { await aes128DecryptFile(filePath, decryptedFilePath); break };
+        case 'low': { await chacha20DecryptFile(filePath, decryptedFilePath); console.log('nikk'); break };
+        case 'none': { await getFile(filePath, decryptedFilePath); break };
+        default: {
+            await aes128DecryptFile(filePath, decryptedFilePath); break
+        };
     }
 
     if (!fs.existsSync(decryptedFilePath)) { return sendResponse(res, 400, 'Decryption failed'); }

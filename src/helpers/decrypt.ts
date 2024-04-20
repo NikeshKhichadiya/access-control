@@ -13,7 +13,6 @@ export const aes256DecryptFile = async (inputFile: string, outputFile: string): 
 
         const readStream = createReadStream(inputFile);
         const writeStream = createWriteStream(outputFile);
-
         const decipher = crypto.createDecipheriv('aes-256-cfb', Buffer.from(key, 'hex'), Buffer.alloc(16));
         await pipelineAsync(readStream, decipher, writeStream);
 
@@ -43,62 +42,85 @@ export const aes128DecryptFile = async (inputFile: string, outputFile: string): 
 };
 
 // export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
-//     const readStream = fs.createReadStream(inputFile);
-//     const writeStream = fs.createWriteStream(outputFile);
-//     const decipher = crypto.createDecipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), Buffer.from(config.chacha20_iv, 'hex'), { authTagLength: 16 });
+//     try {
+//         // Read the encrypted data from the input file
+//         const encryptedDataHex = await fs.promises.readFile(inputFile, 'utf8');
 
-//     readStream.pipe(decipher).pipe(writeStream);
+//         // Convert the encrypted data from hexadecimal string to Buffer
+//         const encryptedData = Buffer.from(encryptedDataHex, 'hex');
 
-//     return new Promise((resolve, reject) => {
-//         writeStream.on('finish', () => {
-//             console.log('File decrypted successfully');
-//             resolve();
+//         // Extract the IV, authentication tag, and encrypted data
+//         const iv = encryptedData.slice(0, 12);
+//         const tag = encryptedData.slice(12, 28);
+//         const encryptedDataOnly = encryptedData.slice(28);
+
+//         // Create a ChaCha20-Poly1305 decipher object
+//         const decipher = crypto.createDecipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), iv, {
+//             authTagLength: 16
 //         });
 
-//         decipher.on('error', (error) => {
-//             console.error('Decryption Error:', error.message);
-//             reject(new Error('Decryption failed'));
-//         });
-//     });
+//         // Set the authentication tag
+//         decipher.setAuthTag(tag);
+
+//         // Decrypt the data buffer
+//         const decryptedData = Buffer.concat([
+//             decipher.update(encryptedDataOnly),
+//             decipher.final()
+//         ]);
+
+//         // Write the decrypted data to the output file
+//         await fs.promises.writeFile(outputFile, decryptedData);
+
+//         console.log('File decrypted successfully');
+//     } catch (error: any) {
+//         // Log and throw an error if decryption fails
+//         console.error('Decryption Error:', error.message);
+//         throw new Error('Decryption failed');
+//     }
 // };
 
-export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<void> => {
-    try {
-        // Read the encrypted data from the input file
-        const encryptedDataHex = await fs.promises.readFile(inputFile, 'utf8');
+export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+    const algorithm = 'chacha20-poly1305';
+    const key = Buffer.from(config.chacha20_key, 'hex'); // 32 bytes
+    const iv = Buffer.from(config.chacha20_iv, 'hex'); // 12 bytes
+    const decipher = crypto.createDecipheriv(algorithm, key, iv, { authTagLength: 16 });
 
-        // Convert the encrypted data from hexadecimal string to Buffer
-        const encryptedData = Buffer.from(encryptedDataHex, 'hex');
-
-        // Extract the IV, authentication tag, and encrypted data
-        const iv = encryptedData.slice(0, 12);
-        const tag = encryptedData.slice(12, 28);
-        const encryptedDataOnly = encryptedData.slice(28);
-
-        // Create a ChaCha20-Poly1305 decipher object
-        const decipher = crypto.createDecipheriv('chacha20-poly1305', Buffer.from(config.chacha20_key, 'hex'), iv, {
-            authTagLength: 16
+    // Read the authentication tag from the input file
+    const readStreamAuth = fs.createReadStream(inputFile, { start: 0, end: 15 });
+    let first16Bytes = '';
+    await new Promise((resolve, reject) => {
+        readStreamAuth.on('data', (chunk) => {
+            first16Bytes += chunk.toString('hex');
         });
+        readStreamAuth.on('end', resolve);
+        readStreamAuth.on('error', reject);
+    });
 
-        // Set the authentication tag
-        decipher.setAuthTag(tag);
+    // Set the authentication tag
+    decipher.setAuthTag(Buffer.from(first16Bytes, 'hex'));
 
-        // Decrypt the data buffer
-        const decryptedData = Buffer.concat([
-            decipher.update(encryptedDataOnly),
-            decipher.final()
-        ]);
+    // Create a write stream for the decrypted output
+    const writeStream = fs.createWriteStream(outputFile);
 
-        // Write the decrypted data to the output file
-        await fs.promises.writeFile(outputFile, decryptedData);
+    // Create a read stream for the input file (starting from the 16th byte)
+    const readStream = fs.createReadStream(inputFile, { start: 16 });
 
-        console.log('File decrypted successfully');
-    } catch (error: any) {
-        // Log and throw an error if decryption fails
-        console.error('Decryption Error:', error.message);
-        throw new Error('Decryption failed');
-    }
-};
+    // Pipe the read stream through the decipher to the write stream
+    readStream.pipe(decipher).on('readable', () => {
+        let chunk;
+        while (null !== (chunk = decipher.read())) {
+            writeStream.write(chunk);
+        }
+    });
+
+    // Wait for the write stream to finish
+    await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+    });
+
+    return 'File decrypted successfully';
+}
 
 
 export const getFile = async (inputFile: string, outputFile: string): Promise<void> => {
