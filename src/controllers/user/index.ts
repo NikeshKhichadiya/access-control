@@ -21,7 +21,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     if (error) throw error;
 
     const locationData = location(req.ip || '');
-    if (!locationData) { return sendResponse(res, 500, 'Internal Server Error') }
+    // if (!locationData) { return sendResponse(res, 500, 'Internal Server Error') }
 
     const user = await User.findOne({ email: data.email });
     if (!!user) { return sendResponse(res, 400, 'User already exist') }
@@ -41,9 +41,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (error) throw error;
 
     const locationData = location(req.ip || '');
-    if (!locationData) { return sendResponse(res, 500, 'Internal Server Error') }
+    // if (!locationData) { return sendResponse(res, 500, 'Internal Server Error') }
 
-    const user = await User.findOne({ email: data.email, password: data.password, country: locationData.country, timezone: locationData.timezone, region: locationData.region });
+    const user = await User.findOne({ email: data.email, password: data.password });
+    // const user = await User.findOne({ email: data.email, password: data.password, country: locationData.country, timezone: locationData.timezone, region: locationData.region });
 
     if (!!user) {
 

@@ -188,7 +188,7 @@ const decrepyFile = async (req: Request, res: Response, data: any, user_id: any)
     switch (data.enc_level) {
         case 'high': { await aes256DecryptFile(filePath, decryptedFilePath); break };
         case 'medium': { await aes128DecryptFile(filePath, decryptedFilePath); break };
-        case 'low': { await chacha20DecryptFile(filePath, decryptedFilePath); console.log('nikk'); break };
+        case 'low': { await chacha20DecryptFile(filePath, decryptedFilePath); break };
         case 'none': { await getFile(filePath, decryptedFilePath); break };
         default: {
             await aes128DecryptFile(filePath, decryptedFilePath); break
