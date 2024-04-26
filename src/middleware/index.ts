@@ -41,7 +41,7 @@ export const decodeDataToken = async (user_id: string, token: string | any, ip: 
 
             if (user_id !== decoded.user_id) { return false }
             const locationData = location(ip);
-            // if (decoded.country !== locationData.country || decoded.region !== locationData.region || decoded.timezone !== locationData.timezone) { return false }
+            if (decoded.country !== locationData.country || decoded.region !== locationData.region || decoded.timezone !== locationData.timezone) { return false }
 
             const dataToken = await DataToken.findOne({ user_id: user_id });
             if (!!dataToken) { return true }
