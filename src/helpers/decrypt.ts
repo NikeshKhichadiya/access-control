@@ -1,6 +1,6 @@
 import { config } from '../config';
 import path from 'path';
-import fs, { createReadStream, createWriteStream } from 'fs';
+import fs, { createReadStream, createWriteStream, existsSync, mkdirSync } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import crypto from 'crypto';
@@ -8,8 +8,15 @@ import crypto from 'crypto';
 const pipelineAsync = promisify(pipeline);
 
 export const aes256DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+
     try {
+
         const key: string = config.aes256key;
+
+        const outputDir = path.dirname(outputFile);
+        if (!existsSync(outputDir)) {
+            mkdirSync(outputDir, { recursive: true });
+        }
 
         const readStream = createReadStream(inputFile);
         const writeStream = createWriteStream(outputFile);
@@ -17,15 +24,25 @@ export const aes256DecryptFile = async (inputFile: string, outputFile: string): 
         await pipelineAsync(readStream, decipher, writeStream);
 
         return 'File decrypted successfully';
+
     } catch (error: any) {
+
         console.error('Decryption Error:', error.message);
         throw new Error('Decryption failed');
+
     }
 };
 
 export const aes128DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+
     try {
+
         const key: string = config.aes128key;
+
+        const outputDir = path.dirname(outputFile);
+        if (!existsSync(outputDir)) {
+            mkdirSync(outputDir, { recursive: true });
+        }
 
         const readStream = createReadStream(inputFile);
         const writeStream = createWriteStream(outputFile);
@@ -36,8 +53,10 @@ export const aes128DecryptFile = async (inputFile: string, outputFile: string): 
         return 'File decrypted successfully';
 
     } catch (error: any) {
+
         console.error('Decryption Error:', error.message);
         throw new Error('Decryption failed');
+
     }
 };
 
@@ -80,10 +99,16 @@ export const aes128DecryptFile = async (inputFile: string, outputFile: string): 
 // };
 
 export const chacha20DecryptFile = async (inputFile: string, outputFile: string): Promise<string> => {
+
     const algorithm = 'chacha20-poly1305';
     const key = Buffer.from(config.chacha20_key, 'hex'); // 32 bytes
     const iv = Buffer.from(config.chacha20_iv, 'hex'); // 12 bytes
     const decipher = crypto.createDecipheriv(algorithm, key, iv, { authTagLength: 16 });
+
+    const outputDir = path.dirname(outputFile);
+    if (!existsSync(outputDir)) {
+        mkdirSync(outputDir, { recursive: true });
+    }
 
     // Read the authentication tag from the input file
     const readStreamAuth = fs.createReadStream(inputFile, { start: 0, end: 15 });
@@ -124,10 +149,8 @@ export const chacha20DecryptFile = async (inputFile: string, outputFile: string)
 
 
 export const getFile = async (inputFile: string, outputFile: string): Promise<void> => {
+
     try {
-        if (!fs.existsSync(inputFile)) {
-            throw new Error('Input file not found');
-        }
 
         const fileContent = await fs.promises.readFile(inputFile, 'binary');
 
