@@ -146,7 +146,9 @@ export const obtainFile = async (req: Request, res: Response): Promise<void> => 
             // Other user trying to access the file
             if (dataToken) {
 
-                const isTokenValidate: boolean = decodeDataToken(dataToken, req.ip || '')
+                const isTokenValidate: boolean = await decodeDataToken(user_id?.toString() || '', dataToken, req.ip || '')
+
+                console.log(isTokenValidate)
 
                 if (isTokenValidate) {
 

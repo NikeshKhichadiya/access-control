@@ -6,7 +6,8 @@ const userSchema = new Schema({
     password: { type: String, required: [true, "'Password' is a required field"] },
     country: { type: String, required: [true, "'Country' is a required field"] },
     region: { type: String, required: [true, "'Region' is a required field"] },
-    timezone: { type: String, required: [true, "'Timezone' is a required field"] }
+    timezone: { type: String, required: [true, "'Timezone' is a required field"] },
+    canGenerateDataToken: { type: Boolean, default: true },
 
 }, { versionKey: false });
 

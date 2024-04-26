@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { sendResponse } from '../helpers/sendResponse';
 import { location } from '../helpers/location';
+import { DataToken } from '../models/dataToken';
 
 export const middleware = (req: Request, res: Response, next: NextFunction) => {
 
@@ -29,7 +30,7 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
 
 };
 
-export const decodeDataToken = (token: string | any, ip: string): boolean => {
+export const decodeDataToken = async (user_id: string, token: string | any, ip: string): Promise<boolean> => {
 
     try {
 
@@ -38,8 +39,12 @@ export const decodeDataToken = (token: string | any, ip: string): boolean => {
 
         if (decoded) {
 
+            if (user_id !== decoded.user_id) { return false }
             const locationData = location(ip);
-            if (decoded.country === locationData.country && decoded.region === locationData.region && decoded.timezone === locationData.timezone) { return true }
+            // if (decoded.country !== locationData.country || decoded.region !== locationData.region || decoded.timezone !== locationData.timezone) { return false }
+
+            const dataToken = await DataToken.findOne({ user_id: user_id });
+            if (!!dataToken) { return true }
 
             return false
         }
